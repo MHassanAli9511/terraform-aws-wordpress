@@ -1,7 +1,7 @@
 # Create an EC2 instance
 resource "aws_instance" "wordpress_instance" {
-  ami           = "ami-021aaf3749be66813"
-  instance_type = "t3.micro"
+  ami           = var.ami_id
+  instance_type = var.instance_type
 
   tags = {
     Name = "WPInstance"

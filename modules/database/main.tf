@@ -3,7 +3,7 @@ resource "aws_db_instance" "wordpress_db" {
   allocated_storage           = 20
   engine                      = "mysql"
   engine_version              = "8.4"
-  instance_class              = "db.t3.micro"
+  instance_class              = var.rds_instance_class
   username                    = "admin"
   manage_master_user_password = true
   skip_final_snapshot         = true

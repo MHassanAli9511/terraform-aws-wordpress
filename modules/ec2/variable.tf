@@ -17,3 +17,13 @@ variable "db_name" {
   description = "Name of the RDS database"
   type        = string
 }
+
+variable "instance_type" {
+  description = "Instance type for the WordPress Server"
+  type        = string
+}
+
+variable "ami_id" {
+  description = "AMI ID for the WordPress Server"
+  type        = string
+}

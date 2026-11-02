@@ -47,6 +47,9 @@ moved {
 module "ec2" {
   source = "./modules/ec2"
 
+  instance_type = var.ec2_instance_type
+  ami_id        = var.ami_id
+
   sg_name     = module.security.wordpress_sg_name
   secret_arn  = module.database.secret_arn
   db_endpoint = module.database.db_endpoint
@@ -63,6 +66,8 @@ moved {
 # Call the database module 
 module "database" {
   source = "./modules/database"
+
+  rds_instance_class = var.rds_instance_class
 
   rds_security_group_id = module.security.rds_sg_id
 }

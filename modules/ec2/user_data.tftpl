@@ -1,0 +1,61 @@
+#!/bin/bash
+set -euo pipefail
+SECRET_ARN="${SECRET_ARN}"
+DB_HOST="${DB_HOST}"
+DB_NAME="${DB_NAME}"
+
+# Update package lists and install necessary packages
+apt-get update
+apt-get install curl unzip -y
+apt-get install apache2 -y
+apt-get install -y jq
+apt-get install -y awscli
+apt-get install -y php libapache2-mod-php php-mysql \
+  php-curl php-xml php-mbstring php-gd php-zip php-cli
+
+# Download and extract WordPress
+curl -fLO https://wordpress.org/latest.tar.gz
+tar -xzf latest.tar.gz -C /var/www/html --strip-components=1
+
+rm -f /var/www/html/index.html
+chown -R www-data:www-data /var/www/html/wp-content
+
+
+
+# Download and install wp-cli
+curl -O https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar
+  chmod +x wp-cli.phar
+  mv wp-cli.phar /usr/local/bin/wp
+  
+# Retrieve database credentials from AWS Secrets Manager
+DB_SECRET_JSON=$(aws secretsmanager get-secret-value \
+  --secret-id "$SECRET_ARN" \
+  --region eu-north-1 \
+  --query SecretString \
+  --output text)
+
+## Extract the username and password from the JSON response using jq
+ DB_USERNAME=$(printf '%s' "$DB_SECRET_JSON" | jq -r '.username')
+ DB_PASSWORD=$(printf '%s' "$DB_SECRET_JSON" | jq -r '.password') 
+ 
+
+if [[ -z "$DB_USERNAME" ]] || [[ $DB_USERNAME == "null" ]] || \
+ [[ -z "$DB_PASSWORD" ]] || [[ $DB_PASSWORD == "null" ]]; then
+  echo "Error: Failed to retrieve database credentials from Secrets Manager."
+  exit 1
+fi
+
+
+# Create wp-config.php using wp-cli and set database credentials
+printf '%s\n' "$DB_PASSWORD" | wp config create \
+  --dbname="$DB_NAME" \
+  --dbuser="$DB_USERNAME" \
+  --dbhost="$DB_HOST" \
+  --prompt=dbpass \
+  --path=/var/www/html \
+  --allow-root
+
+chown root:www-data /var/www/html/wp-config.php
+chmod 640 /var/www/html/wp-config.php
+
+

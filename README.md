@@ -232,7 +232,6 @@ I verified the project through the following checks:
 - The WordPress installation page loaded through the public EC2 endpoint, and the website remained accessible after refactoring.
 - RDS was configured with `publicly_accessible = false`, and its inbound MySQL rule referenced the WordPress security group.
 
-Evidence screenshots from the deployment can be added to a `screenshots/` directory if this project is being used as a portfolio submission. Screenshots should have account identifiers and any credentials redacted before publication.
 
 ## Current scope and possible improvements
 

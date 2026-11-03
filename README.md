@@ -19,11 +19,12 @@ The deployment uses:
 - **Bash user data and WP-CLI** to automate WordPress installation and database configuration.
 
 **Result:** I reached the WordPress installation screen, confirmed the website was accessible, and subsequently refactored the infrastructure into modules without interrupting the working deployment.
+
 ![WordPress Dashboard](screenshots/wordpress-dashboard.png)
 
 ## Architecture
 
-![AWS WordPress Architecture](screenshots/architecture.png)
+![AWS WordPress Architecture](screenshots/architecture%20diagram.png)
 
 The resources were deployed in AWS region **`eu-north-1`**, using the **default VPC** and its existing networking. EC2 received a public address to serve the website, while RDS was configured with `publicly_accessible = false`.
 

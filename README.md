@@ -19,18 +19,11 @@ The deployment uses:
 - **Bash user data and WP-CLI** to automate WordPress installation and database configuration.
 
 **Result:** I reached the WordPress installation screen, confirmed the website was accessible, and subsequently refactored the infrastructure into modules without interrupting the working deployment.
+![WordPress Dashboard](screenshots/wordpress-dashboard.png)
 
 ## Architecture
 
-```mermaid
-flowchart TD
-    User[Website visitor] -->|HTTP :80| EC2["Amazon EC2<br/>Ubuntu + Apache + PHP + WordPress"]
-    EC2 -->|MySQL TCP :3306| RDS["Amazon RDS<br/>MySQL 8.4 - private"]
-    EC2 -->|GetSecretValue using IAM role| SM["AWS Secrets Manager<br/>RDS-managed credentials"]
-    Admin["EC2 Instance Connect"] -->|SSH :22, managed prefix list| EC2
-    TF["Terraform<br/>Root + child modules"] -. provisions .-> EC2
-    TF -. provisions .-> RDS
-```
+![AWS WordPress Architecture](screenshots/architecture.png)
 
 The resources were deployed in AWS region **`eu-north-1`**, using the **default VPC** and its existing networking. EC2 received a public address to serve the website, while RDS was configured with `publicly_accessible = false`.
 
@@ -44,6 +37,9 @@ The resources were deployed in AWS region **`eu-north-1`**, using the **default 
 | WordPress EC2 | Outbound TCP 80/443 | Package downloads and updates |
 | WordPress EC2 | Outbound TCP 3306 | To the RDS security group |
 | RDS MySQL | Inbound TCP 3306 | **Only** from the WordPress EC2 security group |
+
+![RDS Security Group](screenshots/rds-security-group.png)
+
 
 AWS security groups are stateful, so response traffic for an allowed connection does not require a separate reverse rule.
 
@@ -85,6 +81,8 @@ The **root module** connects these modules by passing child-module outputs into 
 
 I initially explored a preconfigured WordPress Marketplace AMI, but eventually moved to a **Canonical Ubuntu Server 26.04 LTS x86_64 AMI** and installed the web stack myself using an EC2 user data script.
 
+![WordPress User Data Script](screenshots/user-data-script.png)
+
 The `modules/ec2/user_data.tftpl` script:
 
 1. Updates package lists and installs Apache, PHP, the required PHP extensions, `curl`, `jq` and the AWS CLI.
@@ -96,6 +94,7 @@ The `modules/ec2/user_data.tftpl` script:
 7. Creates `wp-config.php` with the RDS database name, endpoint and credentials, passing the password to WP-CLI through standard input instead of a normal command-line argument.
 8. Sets appropriate file ownership and permissions: WordPress content is writable by `www-data`, while `wp-config.php` is restricted to `root:www-data` with mode `640`.
 
+
 Terraform supplies the **secret ARN, RDS endpoint and database name** to the script through `templatefile()`. The database password itself is retrieved by EC2 at boot time; it is not hardcoded in the Terraform configuration.
 
 The initial **WordPress site/admin setup** is completed through WordPress's browser-based installation screen.
@@ -103,6 +102,8 @@ The initial **WordPress site/admin setup** is completed through WordPress's brow
 ## IAM and secrets management
 
 I configured an IAM role for EC2 with a trust policy that allows the EC2 service to assume it. An IAM policy grants `secretsmanager:GetSecretValue` access to the **specific RDS-managed secret ARN**, rather than unrestricted access to Secrets Manager.
+
+![EC2 IAM Role](screenshots/iam-role.png)
 
 An IAM instance profile attaches this role to EC2, avoiding the need to store AWS access keys on the server. The EC2 resource also has an explicit `depends_on` relationship with the IAM policy attachment so Terraform creates the attachment before launching the instance.
 
@@ -121,6 +122,10 @@ After the deployment and module refactor worked, I replaced several hardcoded va
 The AMI ID is **region-specific** and should be checked before deploying in another region. Other settings, including RDS storage, may still be defined directly in the module code.
 
 I introduced these variables with their existing values and verified that Terraform planned **no infrastructure changes**.
+
+![Terraform Input Variable](screenshots/terraform-variable.png)
+
+![Terraform Module Inputs](screenshots/module-inputs.png)
 
 ## How to deploy
 
@@ -162,6 +167,8 @@ The most useful part of this assignment was diagnosing actual deployment problem
 ### 1. Marketplace AMI and MySQL memory failure
 
 My first approach used a WordPress Marketplace AMI. After dealing with Marketplace subscription/launch issues, the EC2 instance became reachable, but the browser showed the **Apache default page** rather than WordPress.
+
+![MySQL Installation Error](screenshots/mysql-package-error.png)
 
 I connected using **EC2 Instance Connect** and inspected cloud-init logs. The logs showed that MySQL package configuration had failed. The more specific error was **exit status 137**, which suggested the process had been killed.
 
@@ -218,6 +225,8 @@ moved {
 
 While moving the security group rules, a plan initially proposed deleting one rule and creating another. I investigated and corrected a mistake in the resource move configuration rather than approving the change.
 
+![Terraform Plan Warning](screenshots/security-group-plan-warning.png)
+
 After the corrections, the plans showed **`0 to add, 0 to change, 0 to destroy`** for the refactor. I applied the state migration, checked the new addresses with `terraform state list`, and confirmed the website still worked.
 
 This reinforced why **reviewing `terraform plan` before `terraform apply`** is essential, particularly when changing infrastructure that already exists.
@@ -232,6 +241,7 @@ I verified the project through the following checks:
 - The WordPress installation page loaded through the public EC2 endpoint, and the website remained accessible after refactoring.
 - RDS was configured with `publicly_accessible = false`, and its inbound MySQL rule referenced the WordPress security group.
 
+![Terraform Apply and State](screenshots/terraform-apply-and-state.png)
 
 ## Current scope and possible improvements
 
